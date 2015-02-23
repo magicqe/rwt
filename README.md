@@ -49,5 +49,16 @@ char *WEATHER_URL_B = (char *)"http://api.wunderground.com/api/[add your key]/co
  
  6. make 
 
- 7. run ./rwt
+ 7. setup envoronment
+   export SDL_FBDEV="/dev/fb1"
+   export SDL_VIDEODRIVER="fbcon"
+   export SDL_MOUSEDEV="/dev/input/touchscreen"
+   export SDL_MOUSEDRV="TSLIB"
+   export SDL_NOMOUSE=1
+
+   export TSLIB_TSDEVICE="/dev/input/touchscreen"
+   export TSLIB_CALIBFILE=/etc/pointercal
+   export TSLIB_FBDEVICE=/dev/fb1
+
+ 8. run ./rwt
 
