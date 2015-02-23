@@ -1,7 +1,8 @@
 Radio Weather Time
 
 is simple application to display time,actual weather
-and play your favorite internet radio.
+and play your favorite internet radio using 
+small lcd touch screen.
 
 Setup:
  1. start mpd 
