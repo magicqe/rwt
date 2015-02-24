@@ -60,5 +60,5 @@ char *WEATHER_URL_B = (char *)"http://api.wunderground.com/api/[add your key]/co
    export TSLIB_CALIBFILE=/etc/pointercal
    export TSLIB_FBDEVICE=/dev/fb1
 
- 8. run ./rwt
+ 8. run sudo ./rwt
 
