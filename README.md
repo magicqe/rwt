@@ -1,4 +1,4 @@
-Radio Weather Time
+# RWT is a Radio, Weather and Time station for your linux based system
 
 is simple application to display time,actual weather
 and play your favorite internet radio using 
