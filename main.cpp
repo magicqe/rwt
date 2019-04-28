@@ -39,13 +39,14 @@
 // display height support 240,320
 #define HEIGHT 320
 #define RADIO_REFRESH_TIME 10
-#define WEATHER_REFRESH_TIME 600
+#define WEATHER_REFRESH_TIME 1200
 
 // exmaple 
-char *WEATHER_URL_A = (char *)"http://api.wunderground.com/api/[add your key]/conditions/lang:SK/q/airport/LZIB.json";
-char *WEATHER_URL_B = (char *)"http://api.wunderground.com/api/[add your key]/conditions/lang:SK/q/airport/LZSL.json";
+char *WEATHER_URL_A = (char *)"http://api.openweathermap.org/data/2.5/weather?id=3061186&units=metric&lang=sk&APPID=[your key]";
+char *WEATHER_URL_B = (char *)"http://api.openweathermap.org/data/2.5/weather?id=3060322&units=metric&lang=sk&APPID=[your key]";
 
 // ---------------------------------------------
+const char* const WIND_DIR[]={"N","NNE","NE","ENE","E","ESE", "SE", "SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"};
 
 #if WIDTH==320
 #define WEATHER_HISTORY 140
@@ -135,8 +136,8 @@ typedef struct Weather {
  ulong observation_time;
  char weather_text[50];
  char wind_dir[5];
- int temp_c;
- int wind_kph;
+ double temp_c;
+ double wind_kph;
  int wind_degrees;
  int pressure;
  int visibility;
@@ -209,33 +210,84 @@ int get_url(char *url,Weather *lweather) {
   curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&chunk);
   curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "libcurl-agent/1.0");
   res = curl_easy_perform(curl_handle);
+  int out=0;
+  
   if(res != CURLE_OK) {
     fprintf(stderr, "curl_easy_perform() failed: %s\n",curl_easy_strerror(res));
-  }
-  else {
+  } else {
     cJSON *json = cJSON_Parse(chunk.memory); 
     if (!json) {
      printf("Error before: [%s]\n",cJSON_GetErrorPtr());
+     out=1;
     } else {
-     cJSON *current_observation=cJSON_GetObjectItem(json,"current_observation"); 
-     bzero(lweather,sizeof(Weather));
-     char *station_id = cJSON_GetObjectItem(current_observation,"station_id")->valuestring;
-     strncpy(lweather->station_id,station_id,sizeof(lweather->station_id));     
-     char *observation_epoch = cJSON_GetObjectItem(current_observation,"observation_epoch")->valuestring;
-     lweather->observation_time =strtol(observation_epoch,NULL,10);     
-     char *weather_text=cJSON_GetObjectItem(current_observation,"weather")->valuestring;
-     strncpy(lweather->weather_text,weather_text,sizeof(lweather->weather_text));     
-     char *wind_dir=cJSON_GetObjectItem(current_observation,"wind_dir")->valuestring;
-     strncpy(lweather->wind_dir,wind_dir,sizeof(lweather->wind_dir));          
-     lweather->temp_c = cJSON_GetObjectItem(current_observation,"temp_c")->valueint;
-     lweather->wind_kph = cJSON_GetObjectItem(current_observation,"wind_kph")->valueint;
-     lweather->wind_degrees = cJSON_GetObjectItem(current_observation,"wind_degrees")->valueint;
-     char *pressure_mb = cJSON_GetObjectItem(current_observation,"pressure_mb")->valuestring;
-     lweather->pressure = strtol(pressure_mb,NULL,10);
-     char *visibility_km = cJSON_GetObjectItem(current_observation,"visibility_km")->valuestring;
-     lweather->visibility = strtol(visibility_km,NULL,10);     
-     char *relative_himidity = cJSON_GetObjectItem(current_observation,"relative_humidity")->valuestring;
-     lweather->humidity = strtol(relative_himidity,NULL,10);
+     cJSON *name=cJSON_GetObjectItem(json,"name"); 
+     if (cJSON_IsString(name) && name->valuestring!=NULL) {
+      bzero(lweather,sizeof(Weather));
+      strcpy(lweather->station_id,name->valuestring);
+      //printf("station_id:%s\n",lweather->station_id);
+      
+      cJSON *dt=cJSON_GetObjectItem(json,"dt"); 
+      if (cJSON_IsNumber(dt)) {
+       lweather->observation_time=dt->valueint;
+       //printf("dt:%lu\n",lweather->observation_time);
+      }
+      
+      cJSON *visibility=cJSON_GetObjectItem(json,"visibility"); 
+      if (cJSON_IsNumber(visibility)) {
+       lweather->visibility=visibility->valueint;
+       //printf("visibility:%d\n",lweather->visibility);
+      }
+      
+      cJSON *weathers=cJSON_GetObjectItem(json,"weather"); 
+      if (weathers) {
+       cJSON *item=NULL;
+       cJSON_ArrayForEach(item,weathers) {
+        cJSON *description=cJSON_GetObjectItem(item,"description");
+        if (cJSON_IsString(description) && description->valuestring!=NULL) {
+         strcpy(lweather->weather_text,description->valuestring);
+         //printf("weather_text:%s\n",lweather->weather_text);
+        }
+       }
+      }
+      
+      cJSON *main=cJSON_GetObjectItem(json,"main"); 
+      if  (main) {
+       cJSON *temp=cJSON_GetObjectItem(main,"temp");
+       if (cJSON_IsNumber(temp)) {
+        lweather->temp_c=temp->valuedouble;
+        //printf("temp:%.1f\n",lweather->temp_c);
+       }
+       cJSON *pressure=cJSON_GetObjectItem(main,"pressure");
+       if (cJSON_IsNumber(pressure)) {
+        lweather->pressure=pressure->valueint;
+        //printf("pressure:%d\n",lweather->pressure);
+       }
+       cJSON *humidity=cJSON_GetObjectItem(main,"humidity");
+       if (cJSON_IsNumber(humidity)) {
+        lweather->humidity=humidity->valueint;
+        //printf("humidity:%d\n",lweather->humidity);
+       }
+      }
+      
+      cJSON *wind=cJSON_GetObjectItem(json,"wind");
+      if (wind) {
+       cJSON *speed=cJSON_GetObjectItem(wind,"speed");
+       if (cJSON_IsNumber(speed)) {
+        lweather->wind_kph=speed->valuedouble;
+        //printf("wind_kph:%.1f\n",lweather->wind_kph);
+       }
+       cJSON *deg=cJSON_GetObjectItem(wind,"deg");
+       if (cJSON_IsNumber(deg)) {
+        lweather->wind_degrees=deg->valueint;
+        //printf("wind degrees:%d\n",lweather->wind_degrees);                
+        int val=int((lweather->wind_degrees/22.5)+.5);
+        strcpy(lweather->wind_dir,WIND_DIR[(val % 16)]);
+        //printf("wind_dir:%s\n",lweather->wind_dir);        
+       }
+      }    
+     } else {
+      out=1;
+     }
      cJSON_Delete(json);
     }      
   }
@@ -243,27 +295,30 @@ int get_url(char *url,Weather *lweather) {
   if(chunk.memory)
     free(chunk.memory);
   curl_global_cleanup();
-  return 0;
+  return out;
 }
 
 void update_weather() {
  if (int_connection) {
-  get_url(WEATHER_URL_A,&weather_a); 
-  get_url(WEATHER_URL_B,&weather_b);   
-  if (weather_li>=WEATHER_HISTORY) {
-   for (int i=0;i<WEATHER_HISTORY-1;i++) {
-    temp_a[i]=temp_a[i+1];
-    temp_b[i]=temp_b[i+1];
-    pres_a[i]=pres_a[i+1];
-    pres_b[i]=pres_b[i+1];
-   }  
-   weather_li--;
+  int out=0;
+  out+=get_url(WEATHER_URL_A,&weather_a); 
+  out+=get_url(WEATHER_URL_B,&weather_b);   
+  if (out==0) {
+   if (weather_li>=WEATHER_HISTORY) {
+    for (int i=0;i<WEATHER_HISTORY-1;i++) {
+     temp_a[i]=temp_a[i+1];
+     temp_b[i]=temp_b[i+1];
+     pres_a[i]=pres_a[i+1];
+     pres_b[i]=pres_b[i+1];
+    }  
+    weather_li--;
+   }
+   temp_a[weather_li]=weather_a.temp_c;
+   pres_a[weather_li]=weather_a.pressure;  
+   temp_b[weather_li]=weather_b.temp_c;
+   pres_b[weather_li]=weather_b.pressure;
+   weather_li++;
   }
-  temp_a[weather_li]=weather_a.temp_c;
-  pres_a[weather_li]=weather_a.pressure;  
-  temp_b[weather_li]=weather_b.temp_c;
-  pres_b[weather_li]=weather_b.pressure;
-  weather_li++;   
  } 
 }
 
@@ -633,14 +688,14 @@ void print_weather_status(SDL_Surface* sf,TTF_Font *font) {
  SDL_FreeSurface( text );
 
  bzero(weather_out,sizeof(weather_out));
- snprintf(weather_out,sizeof(weather_out),"%d%cC",weather->temp_c,176);
+ snprintf(weather_out,sizeof(weather_out),"%.1f%cC",weather->temp_c,176);
  text = TTF_RenderText_SolidXY(font,weather_out,redColor); 
  apply_surfaceXY(WEATHER_STATUS_X+tw,WEATHER_STATUS_Y,text,sf);
  tw+=text->w+sp;
  SDL_FreeSurface( text );
  
  bzero(weather_out,sizeof(weather_out));
- snprintf(weather_out,sizeof(weather_out),"%d Km/h,%s",weather->wind_kph,weather->wind_dir);
+ snprintf(weather_out,sizeof(weather_out),"%.1f Km/h,%s",weather->wind_kph,weather->wind_dir);
  text = TTF_RenderUTF8_SolidXY(font,weather_out,brownColor); 
  apply_surfaceXY(WEATHER_STATUS_X+tw,WEATHER_STATUS_Y,text,sf);
  tw+=text->w+sp;
@@ -985,6 +1040,7 @@ int main(int argc, char **argv){
  bzero(temp_b,sizeof(temp_b));
  bzero(pres_a,sizeof(pres_a));
  bzero(pres_b,sizeof(pres_b));
+   
    
 // gen_tp();  
  get_int_ip();  

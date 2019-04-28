@@ -28,8 +28,8 @@ Setup:
 #define WEATHER_REFRESH_TIME 600
 
 // exmaple 
-char *WEATHER_URL_A = (char *)"http://api.wunderground.com/api/[add your key]/conditions/lang:SK/q/airport/LZIB.json";
-char *WEATHER_URL_B = (char *)"http://api.wunderground.com/api/[add your key]/conditions/lang:SK/q/airport/LZSL.json";
+char *WEATHER_URL_A = (char *)"http://api.openweathermap.org/data/2.5/weather?id=3061186&units=metric&lang=sk&APPID=[your key]";
+char *WEATHER_URL_B = (char *)"http://api.openweathermap.org/data/2.5/weather?id=3060322&units=metric&lang=sk&APPID=[your key]";
 
 // ---------------------------------------------
 
